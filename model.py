@@ -7,6 +7,7 @@ import pandas as pd
 input_len = 300
 output_len = 300
 
+
 def BILSTM(hidden_num, use_dropout):
 
     def rnn():
