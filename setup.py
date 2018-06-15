@@ -81,7 +81,7 @@ with tf.variable_scope('rnn_cell'):
 
 # 使之定义为reuse模式，循环使用，保持参数相同
 def rnn_cell(rnn_input, state):
-    with tf.variable_scope('rnn_cell',reuse=True):
+    with tf.variable_scope('rnn_cell', reuse=True):
         W = tf.get_variable('W', [n_classes + state_size, state_size])
         b = tf.get_variable('b', [state_size], initializer=tf.constant_initializer(0.0))
 
@@ -92,33 +92,33 @@ def rnn_cell(rnn_input, state):
 state = init_state
 rnn_outputs = []
 
-#循环num_steps次，即将一个序列输入RNN模型
+# 循环num_steps次，即将一个序列输入RNN模型
 for rnn_input in rnn_inputs:
     state = rnn_cell(rnn_input, state)
     rnn_outputs.append(state)
 final_state = rnn_outputs[-1]
 
-#cell = tf.contrib.rnn.BasicRNNCell(state_size)
-#rnn_outputs,final_state = tf.contrib.rnn.static_rnn(cell,rnn_inputs,initial_state=init_state)
+# cell = tf.contrib.rnn.BasicRNNCell(state_size)
+# rnn_outputs,final_state = tf.contrib.rnn.static_rnn(cell,rnn_inputs,initial_state=init_state)
 
 # rnn_inputs = x_one_hot
 # rnn_outputs,final_state = tf.nn.dynamic_rnn(cell,rnn_inputs,initial_state=init_state)
 
-#定义softmax层
+# 定义softmax层
 with tf.variable_scope('softmax'):
     W = tf.get_variable('W',[state_size,n_classes])
     b = tf.get_variable('b',[n_classes])
-#注意，这里要将num_steps个输出全部分别进行计算其输出，然后使用softmax预测
-logits = [tf.matmul(rnn_output,W)+b for rnn_output in rnn_outputs]
+# 注意，这里要将num_steps个输出全部分别进行计算其输出，然后使用softmax预测
+logits = [tf.matmul(rnn_output, W)+b for rnn_output in rnn_outputs]
 predictions = [tf.nn.softmax(logit) for logit in logits]
 # Turn our y placeholder into a list of labels
 y_as_lists = tf.unstack(y,num=num_steps,axis=1)
 
-#losses and train_step
+# losses and train_step
 losses = [tf.nn.sparse_softmax_cross_entropy_with_logits(labels=label,logits=logit) for label,logit in zip(y_as_lists,predictions)]
 total_loss = tf.reduce_mean(losses)
 train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(total_loss)
-#使用动态rnn时改为下面的代码
+# 使用动态rnn时改为下面的代码
 # logits = tf.reshape(
 #             tf.matmul(tf.reshape(rnn_outputs, [-1, state_size]), W) + b,
 #             [batch_size, num_steps, n_classes])
