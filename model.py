@@ -96,8 +96,8 @@ class Model:
         # 对使用tanh激活的输出output1进行归一化，由于使用的是余弦距离衡量相似度，我们将向量的模长归一，
         # output1代表的是包含所有step的最后层输出[batch, time_step, output_len]
         #
-        self.output1 = tf.nn.l2_normalize(output1, dim=2)
-        self.output2 = tf.nn.l2_normalize(output2, dim=2)
+        self.output1 = tf.nn.l2_normalize(output1, axis=2)
+        self.output2 = tf.nn.l2_normalize(output2, axis=2)
         # self.output1 = tf.transpose(
         #     tf.div(tf.transpose(output1, [2, 0, 1]), tf.reduce_mean(tf.square(output1), axis=2)), [1, 2, 0])
         # # self.output2 = tf.nn.softmax(output1, axis=-1)
