@@ -83,59 +83,86 @@ class Model:
         self.batch_size = self.batch_size
         self.input1 = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, self.embeding_len], name='input-1')
         self.input2 = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, self.embeding_len], name='input-2')
-        self.label = tf.placeholder(dtype=tf.int64, shape=[self.batch_size], name='label')
+        self.label = tf.placeholder(dtype=tf.float32, shape=[self.batch_size], name='label')
         lstm_cell_list = []
         for unit in self.hidden_unit:
-            lstm_cell = rnn.BasicLSTMCell(unit, forget_bias=0)
+            lstm_cell = rnn.BasicLSTMCell(unit, forget_bias=0, activation=tf.tanh)
             lstm_cell.zero_state(self.batch_size, dtype=tf.float32)
             lstm_cell_list.append(lstm_cell)
         multi = rnn.MultiRNNCell(lstm_cell_list)
-        self.output1, self.state1 = tf.nn.dynamic_rnn(multi, self.input1, sequence_length=self.max_time_step)
-        self.output2, self.state2 = tf.nn.dynamic_rnn(multi, self.input2, sequence_length=self.max_time_step)
+        output1, self.state1 = tf.nn.dynamic_rnn(multi, self.input1, dtype=tf.float32)
+        # self.output1 = tf.nn.softmax(output1, axis=-1)
+        # 对使用tanh激活的输出output1进行归一化，由于使用的是余弦距离衡量相似度，我们将向量的模长归一，
+        # output1代表的是包含所有step的最后层输出[batch, time_step, output_len]
+        #
+        self.output1 = tf.
+        self.output1 = tf.transpose(
+            tf.div(tf.transpose(output1, [2, 0, 1]), tf.reduce_mean(tf.square(output1), axis=-1)), [1, 2, 0])
+        output2, self.state2 = tf.nn.dynamic_rnn(multi, self.input2, dtype=tf.float32)
+        # self.output2 = tf.nn.softmax(output1, axis=-1)
+        self.output2 = tf.transpose(
+            tf.div(tf.transpose(output2, [2, 0, 1]), tf.reduce_mean(tf.square(output2), axis=-1)), [1, 2, 0])
 
-        self.three_summary_add(tf.summary.image(name='output1', tensor=tf.div(self.output1 + 1, 2)))
-        self.three_summary_add(tf.summary.image(name='output2', tensor=tf.div(self.output1 + 1, 2)))
+        self.three_summary_add(
+            tf.summary.image(name='output1', tensor=tf.cast(
+                255 * tf.div(tf.expand_dims(tf.expand_dims(self.output1[:, -1], axis=[0]), axis=[3]) + 1, 2),
+                tf.uint8)))
+        self.three_summary_add(
+            tf.summary.image(name='output2', tensor=tf.cast(
+                255 * tf.div(tf.expand_dims(tf.expand_dims(self.output2[:, -1], axis=[0]), axis=[3]) + 1, 2),
+                tf.uint8)))
 
         # 分离四个gate， 分别summary
         for i in lstm_cell_list:
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[0].name + '-gate-weight-1',
-                                     values=i.weights[0][:, 0: i.state_size]))
+                                     values=i.weights[0][:, 0: i.state_size.c]))
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[1].name + '-gate-bias-1',
-                                     values=i.weights[1][0: i.state_size]))
+                                     values=i.weights[1][0: i.state_size.c]))
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[0].name + '-gate-weight-2',
-                                     values=i.weights[0][:, i.state_size: 2 * i.state_size]))
+                                     values=i.weights[0][:, i.state_size.c: 2 * i.state_size.c]))
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[1].name + '-gate-bias-2',
-                                     values=i.weights[1][0: i.state_size: 2 * i.state_size]))
+                                     values=i.weights[1][i.state_size.c: 2 * i.state_size.c]))
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[0].name + '-gate-weight-3',
-                                     values=i.weights[0][:, 2 * i.state_size: 3 * i.state_size]))
+                                     values=i.weights[0][:, 2 * i.state_size.c: 3 * i.state_size.c]))
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[1].name + '-gate-bias-3',
-                                     values=i.weights[1][0: 2 * i.state_size: 3 * i.state_size]))
+                                     values=i.weights[1][2 * i.state_size.c: 3 * i.state_size.c]))
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[0].name + '-gate-weight-4',
-                                     values=i.weights[0][:, 3 * i.state_size: 4 * i.state_size]))
+                                     values=i.weights[0][:, 3 * i.state_size.c: 4 * i.state_size.c]))
             tf.add_to_collection(
                 self.TRAIN_C,
                 tf.summary.histogram(name=i.weights[1].name + '-gate-bias-4',
-                                     values=i.weights[1][0: 3 * i.state_size: 4 * i.state_size]))
+                                     values=i.weights[1][3 * i.state_size.c: 4 * i.state_size.c]))
         pass
 
-    def loss(self):
-        self.loss = self.label * tf.losses.mean_squared_error(self.output1, self.output2) - \
-                    (1 - self.label) * tf.losses.mean_squared_error(self.output1, self.output2)
-        self.match_score = tf.losses.mean_squared_error(self.output1, self.output2) / self.hidden_unit[-1]
+    def build_loss(self):
+        # self.loss = 0.5 * (self.label * (
+        # 1 - tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1,
+        #                               reduction=tf.losses.Reduction.NONE)) +
+        #                    (1 - self.label) * (
+        #                        1 + tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)))
+        # self.match_score = 0.5 * (1 -
+        #                           tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1,
+        #                                                     reduction=tf.losses.Reduction.NONE))
+        self.loss = 0.5 * tf.reduce_mean(
+            self.label * (1 - tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)) +
+            (1 - self.label) * (
+                1 + tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)))
+        self.match_score = 0.5 * (1 - tf.reduce_mean(
+            tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)))
         tf.add_to_collection(
             self.TRAIN_C,
             tf.summary.scalar(name='loss', tensor=self.loss))
@@ -157,12 +184,26 @@ class Model:
         pass
 
     def train(self, **options):
+        """
+        
+        :param options: 
+        :keyword retrain: when continue train use retrain=True
+        :keyword retrain_file: when continue train use retrain_file to special restore weight file
+        :keyword save_path: special the path to save summary and checkpoint
+        :keyword epoch: special epoch to tain
+        :keyword val_while_n_epoch: special val between n epoch
+        :keyword save_shile_n_step: special save summary and checkpoint between n epoch
+        :keyword data: special Data obj to handle generator data input feed
+        :keyword cahr: special use data to generate char embeding, set True
+        :keyword word: special use data to generate word embeding, set True
+        :return: 
+        """
         self.retrain = options.pop('retrain', self.retrain)
         self.retrain_file = options.pop('retrain_file', self.retrain_file)
         if self.retrain is True:
             assert self.retrain_file is not None, 'retrain_file, train'
-        self.save_path = options.pop('save_path', self.save_path), 'save_path, train'
-        assert self.save_path is not None
+        self.save_path = options.pop('save_path', self.save_path)
+        assert self.save_path != '', 'save_path, train'
         self.epoch = options.pop('epoch', self.epoch)
         self.val_while_n_epoch = options.pop('val_while_n_epoch', self.val_while_n_epoch)
         self.save_while_n_step = options.pop('save_while_n_step', self.save_while_n_step)
@@ -178,8 +219,7 @@ class Model:
 
         # opt
         opt = tf.train.AdamOptimizer(0.01)
-        with tf.control_dependencies([step_up]):
-            mini = opt.minimize(self.loss, global_step=step)
+        mini = opt.minimize(self.loss, global_step=step)
 
         # moving average
         ema = tf.train.ExponentialMovingAverage(0.99, step)
@@ -197,38 +237,49 @@ class Model:
         sess = tf.Session()
         sess.run(tf.global_variables_initializer())
 
-        Step = 0
         Epoch = 0
         for ep in range(0, self.epoch):
+            print('>>------------Epoch------------<<')
             gen = data.gen_train(char=char, word=word)
             while True:
                 try:
                     start_data_read = time.time()
                     input1, input2, label = gen.__next__()
                     end_data_read = time.time()
-                    start_train = time.time()
-                    _, loss, match_score, summary = \
-                        sess.run(
-                            [train_op, self.loss, self.match_score, train_summary],
-                            feed_dict={
-                                self.input1: input1,
-                                self.input2: input2,
-                                self.label: label
-                            }
-                        )
-                    end_train = time.time()
                 except Exception:
                     break
-                Step += 1
+                start_train = time.time()
+                # _, loss, match_score, summary = \
+                #     sess.run(
+                #         [train_op, self.loss, self.match_score, train_summary],
+                #         feed_dict={
+                #             self.input1: input1,
+                #             self.input2: input2,
+                #             self.label: label
+                #         }
+                #     )
+                _, loss, match_score = \
+                    sess.run(
+                        [train_op, self.loss, self.match_score],
+                        feed_dict={
+                            self.input1: input1,
+                            self.input2: input2,
+                            self.label: label
+                        }
+                    )
+                end_train = time.time()
                 print("<<: step: {0}, epoch: {1}, loss: {2}, match_score: {3}, "
                       "train_time: {4}s, data_read_batch_time: {5}s"
-                      .format(Step, Epoch, loss, match_score, end_train - start_train, end_data_read - start_data_read))
-                if Step % self.save_while_n_step == 0:
+                      .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
+                              end_data_read - start_data_read))
+                if (sess.run(step) % self.save_while_n_step == 0) and (sess.run(step) != 0):
                     writer.add_summary(summary, global_step=sess.run(step))
+                    saver.save(sess, self.save_path + '-ckpt-', global_step=sess.run(step), write_meta_graph=True)
                 pass
 
-            if ep % self.val_while_n_epoch == 0:
-                gen = data.gen_train(char=char, word=word)
+            if (ep % self.val_while_n_epoch == 0) and (ep != 0):
+                print('>>----------val-----------<<:')
+                gen = data.gen_val(char=char, word=word)
                 while True:
                     try:
                         start_data_read = time.time()
@@ -247,15 +298,13 @@ class Model:
                         end_train = time.time()
                     except Exception:
                         break
-                    Step += 1
+                    sess.run(step)
                     print("<<: step: {0}, epoch: {1}, loss: {2}, match_score: {3}, "
                           "train_time: {4}s, data_read_batch_time: {5}s"
-                          .format(Step, Epoch, loss, match_score, end_train - start_train,
+                          .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
                                   end_data_read - start_data_read))
 
             Epoch += 1
-
-
         pass
 
     def restore(self, **options):
@@ -266,3 +315,15 @@ class Model:
     def test(self):
         test_summary = tf.summary.merge_all(self.TEST_C)
         pass
+    pass
+
+
+if __name__ == '__main__':
+    import data
+    model = Model()
+    train_data_handle = data.Data(sources='./Data/train.csv', batch_size=32, val_rate=0.1, train=True)
+    model.build(embeding_len=300, batch_size=32, hidden_unit=[200, 50],
+                max_time_step=train_data_handle.char_fixed_length)
+    model.build_loss()
+    model.train(epoch=100, save_path='./check/', save_while_n_step=10000, val_while_n_epoch=10000,
+                data=train_data_handle, char=True)
