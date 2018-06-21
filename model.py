@@ -91,17 +91,18 @@ class Model:
             lstm_cell_list.append(lstm_cell)
         multi = rnn.MultiRNNCell(lstm_cell_list)
         output1, self.state1 = tf.nn.dynamic_rnn(multi, self.input1, dtype=tf.float32)
+        output2, self.state2 = tf.nn.dynamic_rnn(multi, self.input2, dtype=tf.float32)
         # self.output1 = tf.nn.softmax(output1, axis=-1)
         # 对使用tanh激活的输出output1进行归一化，由于使用的是余弦距离衡量相似度，我们将向量的模长归一，
         # output1代表的是包含所有step的最后层输出[batch, time_step, output_len]
         #
-        self.output1 = tf.
-        self.output1 = tf.transpose(
-            tf.div(tf.transpose(output1, [2, 0, 1]), tf.reduce_mean(tf.square(output1), axis=-1)), [1, 2, 0])
-        output2, self.state2 = tf.nn.dynamic_rnn(multi, self.input2, dtype=tf.float32)
-        # self.output2 = tf.nn.softmax(output1, axis=-1)
-        self.output2 = tf.transpose(
-            tf.div(tf.transpose(output2, [2, 0, 1]), tf.reduce_mean(tf.square(output2), axis=-1)), [1, 2, 0])
+        self.output1 = tf.nn.l2_normalize(output1, dim=2)
+        self.output2 = tf.nn.l2_normalize(output2, dim=2)
+        # self.output1 = tf.transpose(
+        #     tf.div(tf.transpose(output1, [2, 0, 1]), tf.reduce_mean(tf.square(output1), axis=2)), [1, 2, 0])
+        # # self.output2 = tf.nn.softmax(output1, axis=-1)
+        # self.output2 = tf.transpose(
+        #     tf.div(tf.transpose(output2, [2, 0, 1]), tf.reduce_mean(tf.square(output2), axis=2)), [1, 2, 0])
 
         self.three_summary_add(
             tf.summary.image(name='output1', tensor=tf.cast(
@@ -158,11 +159,11 @@ class Model:
         #                           tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1,
         #                                                     reduction=tf.losses.Reduction.NONE))
         self.loss = 0.5 * tf.reduce_mean(
-            self.label * (1 - tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)) +
+            self.label * (1 - tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=1)) +
             (1 - self.label) * (
-                1 + tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)))
+                1 + tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=1)))
         self.match_score = 0.5 * (1 - tf.reduce_mean(
-            tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)))
+            tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=1)))
         tf.add_to_collection(
             self.TRAIN_C,
             tf.summary.scalar(name='loss', tensor=self.loss))
