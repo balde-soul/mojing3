@@ -150,20 +150,12 @@ class Model:
         pass
 
     def build_loss(self):
-        # self.loss = 0.5 * (self.label * (
-        # 1 - tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1,
-        #                               reduction=tf.losses.Reduction.NONE)) +
-        #                    (1 - self.label) * (
-        #                        1 + tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1)))
-        # self.match_score = 0.5 * (1 -
-        #                           tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=-1,
-        #                                                     reduction=tf.losses.Reduction.NONE))
-        self.loss = 0.5 * tf.reduce_mean(
-            self.label * (1 - tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=1)) +
-            (1 - self.label) * (
-                1 + tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=1)))
-        self.match_score = 0.5 * (1 - tf.reduce_mean(
-            tf.losses.cosine_distance(self.output1[:, -1, :], self.output2[:, -1, :], axis=1)))
+        cosine_coss = tf.div(tf.reduce_sum(tf.multiply(self.output1[:, -1, :], self.output2[:, -1, :]), axis=-1),
+                             tf.multiply(tf.sqrt(tf.reduce_sum(tf.square(self.output1[:, -1, :]), axis=-1)),
+                                         tf.sqrt(tf.reduce_sum(tf.square(self.output2[:, -1, :]), axis=-1))))
+        # singal_loss = 0.5 * (self.label * (1 - cosine_coss) + (1 - self.label) * (1 + cosine_coss))
+        self.loss = 0.5 * (1 + tf.reduce_mean(cosine_coss - 2 * self.label * cosine_coss))
+        self.match_score = 0.5 * (1 + tf.reduce_mean(cosine_coss))
         tf.add_to_collection(
             self.TRAIN_C,
             tf.summary.scalar(name='loss', tensor=self.loss))
@@ -250,24 +242,51 @@ class Model:
                 except Exception:
                     break
                 start_train = time.time()
-                # _, loss, match_score, summary = \
-                #     sess.run(
-                #         [train_op, self.loss, self.match_score, train_summary],
-                #         feed_dict={
-                #             self.input1: input1,
-                #             self.input2: input2,
-                #             self.label: label
-                #         }
-                #     )
-                _, loss, match_score = \
+                _, loss, match_score, summary = \
                     sess.run(
-                        [train_op, self.loss, self.match_score],
+                        [train_op, self.loss, self.match_score, train_summary],
                         feed_dict={
                             self.input1: input1,
                             self.input2: input2,
                             self.label: label
                         }
                     )
+                # _, loss, match_score = \
+                #     sess.run(
+                #         [train_op, self.loss, self.match_score],
+                #         feed_dict={
+                #             self.input1: input1,
+                #             self.input2: input2,
+                #             self.label: label
+                #         }
+                #     )
+
+                # print('>>----------val-----------<<:')
+                # genv = data.gen_val(char=char, word=word)
+                # while True:
+                #     try:
+                #         start_data_read = time.time()
+                #         input1, input2, label = genv.__next__()
+                #         end_data_read = time.time()
+                #     except Exception:
+                #         break
+                #     start_train = time.time()
+                #     _, loss, match_score, summary = \
+                #         sess.run(
+                #             [train_op, self.loss, self.match_score, val_summary],
+                #             feed_dict={
+                #                 self.input1: input1,
+                #                 self.input2: input2,
+                #                 self.label: label
+                #             }
+                #         )
+                #     end_train = time.time()
+                #     sess.run(step)
+                #     print("<<: step: {0}, epoch: {1}, loss: {2}, match_score: {3}, "
+                #           "train_time: {4}s, data_read_batch_time: {5}s"
+                #           .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
+                #                   end_data_read - start_data_read))
+
                 end_train = time.time()
                 print("<<: step: {0}, epoch: {1}, loss: {2}, match_score: {3}, "
                       "train_time: {4}s, data_read_batch_time: {5}s"
@@ -326,5 +345,5 @@ if __name__ == '__main__':
     model.build(embeding_len=300, batch_size=32, hidden_unit=[200, 50],
                 max_time_step=train_data_handle.char_fixed_length)
     model.build_loss()
-    model.train(epoch=100, save_path='./check/', save_while_n_step=10000, val_while_n_epoch=10000,
+    model.train(epoch=100, save_path='./check/', save_while_n_step=10000, val_while_n_epoch=2,
                 data=train_data_handle, char=True)
