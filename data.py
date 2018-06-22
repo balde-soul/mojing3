@@ -50,6 +50,7 @@ class Data:
             assert self.val_rate is None
             assert self.batch_size is None
             self.x = data
+            self.test_data_num = data.shape[0]
         pass
 
     def set_batch_size(self, batch_szie):
@@ -66,7 +67,7 @@ class Data:
         training = options.pop('training', False)
         valing = options.pop('valing', False)
         if self.train is True:
-            assert valing != training is True, 'in train , valing and traing can not be true in the same time'
+            assert valing != training, 'in train , valing and traing can not be true in the same time'
             field = []
             if training:
                 while 1:
@@ -164,8 +165,8 @@ class Data:
             sys.exit()
 
     def gen_val(self, **options):
-        char = options.pop('char', None)
-        word = options.pop('word', None)
+        char = options.pop('char', False)
+        word = options.pop('word', False)
         assert char & word is not True, "char word is true in the same time"
         gen_one = self.gen_data(valing=True)
         if char is True:
@@ -209,15 +210,13 @@ if __name__ == '__main__':
     gen_train = data.gen_train(char=True)
     gen_val = data.gen_val(char=True)
     # b = np.zeros(shape=[3, 4, 5])
-    batch_num = 0
-    while True:
-        try:
-            x, y, l = gen_train.__next__()
-            batch_num += 1
-            print(batch_num)
-        except Exception:
-            print(Exception.__name__)
-            break
-            pass
+    try:
+        x, y, l = gen_train.__next__()
+    except Exception:
+        print(Exception.__name__)
         pass
-    pass
+    try:
+        x, y, l = gen_val.__next__()
+    except Exception:
+        print(Exception.__name__)
+        pass

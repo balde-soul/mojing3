@@ -60,12 +60,21 @@ parser.add_option(
     help='set train epoch, default 1000'
 )
 parser.add_option(
+    '--ds',
+    '--display_while_n_step',
+    action='store',
+    type=int,
+    dest='DisplayWhileNStep',
+    default=32,
+    help='while n step, would display info, default 20'
+)
+parser.add_option(
     '--ss',
     '--save_while_n_step',
     action='store',
     type=int,
     dest='SaveWhileNStep',
-    default=2,
+    default=1000,
     help='while n step, would save summary and checkpoint, default 10000'
 )
 parser.add_option(
@@ -97,6 +106,11 @@ if __name__ == '__main__':
     print('Batch Size: ', options.BatchSize)
     model = model.Model()
     data_handle = data.Data(sources=sources, batch_size=options.BatchSize, val_rate=options.ValRate, train=train, test=test)
+    if train is True:
+        print('epoch train batch size: ', data_handle.train_batch_num)
+        print('epoch train batch size: ', data_handle.val_batch_num)
+    if test is True:
+        print('test data num: ', data_handle.test_data_num)
     if options.DataType == 'char':
         char = True
         word = False
@@ -110,6 +124,7 @@ if __name__ == '__main__':
     hidden_unit = [int(i) for i in options.HiddenUnit.split(' ')]
     print('hidden unit: ', hidden_unit)
     print('Epoch: ', options.Epoch)
+    print('display while {0} step'.format(options.DisplayWhileNStep))
     print('save while {0} step'.format(options.SaveWhileNStep))
     print('val while {0} epoch'.format(options.ValWhileNEpoch))
     model.build(embeding_len=300, batch_size=options.BatchSize, hidden_unit=hidden_unit,
@@ -117,5 +132,5 @@ if __name__ == '__main__':
     model.build_loss()
     model.train(epoch=options.Epoch, save_path='./check/', save_while_n_step=options.SaveWhileNStep,
                 val_while_n_epoch=options.ValWhileNEpoch,
-                data=data_handle, char=char, word=word)
+                data=data_handle, char=char, word=word, display_shilw_n_step=options.DisplayWhileNStep)
     pass

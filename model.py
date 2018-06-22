@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
+import numpy as np
 from tensorflow.python import debug as tf_debug
 import pandas as pd
 import time
@@ -38,6 +39,7 @@ class Model:
 
         self.match_score = None
         self.loss = None
+        self.standard_loss = None
 
         self.retrain = False
         self.retrain_file = ''
@@ -45,6 +47,7 @@ class Model:
         self.epoch = None
         self.val_while_n_epoch = 1
         self.save_while_n_step = 10
+        self.display_while_n_step = 10
 
         self.TRAIN_C = 'TRAIN'
         self.VAL_C = 'VAL'
@@ -156,7 +159,9 @@ class Model:
                                          tf.sqrt(tf.reduce_sum(tf.square(self.output2[:, -1, :]), axis=-1))))
         # singal_loss = 0.5 * (self.label * (1 - cosine_coss) + (1 - self.label) * (1 + cosine_coss))
         self.loss = 0.5 * (1 + tf.reduce_mean(cosine_coss - 2 * self.label * cosine_coss))
+        _match_score = 0.5 * (1 + cosine_coss)
         self.match_score = 0.5 * (1 + tf.reduce_mean(cosine_coss))
+        self.standard_loss = tf.reduce_mean(tf.losses.log_loss(self.label, _match_score, epsilon=1e-15))
         tf.add_to_collection(
             self.TRAIN_C,
             tf.summary.scalar(name='loss', tensor=self.loss))
@@ -201,6 +206,8 @@ class Model:
         self.epoch = options.pop('epoch', self.epoch)
         self.val_while_n_epoch = options.pop('val_while_n_epoch', self.val_while_n_epoch)
         self.save_while_n_step = options.pop('save_while_n_step', self.save_while_n_step)
+        self.display_while_n_step = options.pop('display_shilw_n_step', self.display_while_n_step)
+        code_test = options.pop('code_test', False)
         data = options.pop('data', None)
         char = options.pop('char', False)
         word = options.pop('word', False)
@@ -235,9 +242,12 @@ class Model:
         sess.run(tf.global_variables_initializer())
 
         Epoch = 0
+
         for ep in range(0, self.epoch):
             print('>>------------Epoch------------<<')
             gen = data.gen_train(char=char, word=word)
+            epoch_standard_loss=[]
+            epoch_loss=[]
             while True:
                 try:
                     start_data_read = time.time()
@@ -246,73 +256,33 @@ class Model:
                 except Exception:
                     break
                 start_train = time.time()
-                _, loss, match_score, summary = \
+                _, loss, match_score, standard_loss, summary = \
                     sess.run(
-                        [train_op, self.loss, self.match_score, train_summary],
+                        [train_op, self.loss, self.match_score, self.standard_loss, train_summary],
                         feed_dict={
                             self.input1: input1,
                             self.input2: input2,
                             self.label: label
                         }
                     )
-                # _, loss, match_score = \
-                #     sess.run(
-                #         [train_op, self.loss, self.match_score],
-                #         feed_dict={
-                #             self.input1: input1,
-                #             self.input2: input2,
-                #             self.label: label
-                #         }
-                #     )
-
-                # print('>>----------val-----------<<:')
-                # genv = data.gen_val(char=char, word=word)
-                # while True:
-                #     try:
-                #         start_data_read = time.time()
-                #         input1, input2, label = genv.__next__()
-                #         end_data_read = time.time()
-                #     except Exception:
-                #         break
-                #     start_train = time.time()
-                #     _, loss, match_score, summary = \
-                #         sess.run(
-                #             [train_op, self.loss, self.match_score, val_summary],
-                #             feed_dict={
-                #                 self.input1: input1,
-                #                 self.input2: input2,
-                #                 self.label: label
-                #             }
-                #         )
-                #     end_train = time.time()
-                #     sess.run(step)
-                #     print("<<: step: {0}, epoch: {1}, loss: {2}, match_score: {3}, "
-                #           "train_time: {4}s, data_read_batch_time: {5}s"
-                #           .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
-                #                   end_data_read - start_data_read))
-
                 end_train = time.time()
-                print("<<: step: {0}, epoch: {1}, loss: {2}, match_score: {3}, "
-                      "train_time: {4}s, data_read_batch_time: {5}s"
-                      .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
-                              end_data_read - start_data_read))
-                if sess.run(step) % self.save_while_n_step == 0:
-                    writer.add_summary(summary, global_step=sess.run(step))
-                    saver.save(sess, self.save_path + '-ckpt-', global_step=sess.run(step), write_meta_graph=True)
-                pass
-
-            if ep % self.val_while_n_epoch == 0:
-                print('>>----------val-----------<<:')
-                gen = data.gen_val(char=char, word=word)
-                while True:
-                    try:
-                        start_data_read = time.time()
-                        input1, input2, label = gen.__next__()
-                        end_data_read = time.time()
+                epoch_loss.append(loss)
+                epoch_standard_loss.append(standard_loss)
+                # for test the code correct or not
+                if code_test:
+                    print('>>----------val-----------<<:')
+                    genv = data.gen_val(char=char, word=word)
+                    for i in range(0, 10):
+                        try:
+                            start_data_read = time.time()
+                            input1, input2, label = genv.__next__()
+                            end_data_read = time.time()
+                        except Exception:
+                            break
                         start_train = time.time()
-                        _, loss, match_score, summary = \
+                        loss, match_score, standard_loss, summary = \
                             sess.run(
-                                [train_op, self.loss, self.match_score, val_summary],
+                                [self.loss, self.match_score, self.standard_loss, val_summary],
                                 feed_dict={
                                     self.input1: input1,
                                     self.input2: input2,
@@ -320,15 +290,102 @@ class Model:
                                 }
                             )
                         end_train = time.time()
+                        sess.run(step)
+                        print("code_test<<: step: {0}"
+                              ", epoch: {1}, loss: {2}"
+                              ", match_score: {3}"
+                              ", now_mean_standard_loss: {6}"
+                              ", now_mean_loss"
+                              "train_time: {4}s"
+                              ", data_read_batch_time: {5}s"
+                              .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
+                                      end_data_read - start_data_read, standard_loss))
+                        pass
+                    pass
+
+                # training step display
+                if sess.run(step) % self.display_while_n_step == 0:
+                    print(
+                        "train_step<<: step: {0}"
+                        ", epoch: {1}, loss: {2}"
+                        ", match_score: {3}"
+                        ", now_mean_standard_loss: {6}"
+                        ", now_mean_loss: {7}"
+                        "train_time: {4}s"
+                        ", data_read_batch_time: {5}s"
+                            .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
+                                    end_data_read - start_data_read, np.mean(epoch_standard_loss),
+                                    np.mean(epoch_loss)))
+                    pass
+
+                if sess.run(step) % self.save_while_n_step == 0:
+                    writer.add_summary(summary, global_step=sess.run(step))
+                    saver.save(sess, self.save_path + '-ckpt-', global_step=sess.run(step), write_meta_graph=True)
+                    pass
+                pass
+
+            # one train epoch display
+            print('train_epoch<<: epoch: {0}'
+                  ', epoch_loss: {1}'
+                  ', epoch_standard_loss: {2}'
+                  .format(ep, np.mean(epoch_loss),
+                          np.mean(epoch_standard_loss)))
+
+            if ep % self.val_while_n_epoch == 0:
+                print('>>----------val-----------<<:')
+                gen = data.gen_val(char=char, word=word)
+                epoch_loss = []
+                epoch_standard_loss = []
+                step = 0
+                while True:
+                    try:
+                        start_data_read = time.time()
+                        input1, input2, label = gen.__next__()
+                        end_data_read = time.time()
                     except Exception:
                         break
-                    sess.run(step)
-                    print("<<: step: {0}, epoch: {1}, loss: {2}, match_score: {3}, "
-                          "train_time: {4}s, data_read_batch_time: {5}s"
-                          .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
-                                  end_data_read - start_data_read))
+                    start_train = time.time()
+                    loss, match_score, standard_loss, summary = \
+                        sess.run(
+                            [self.loss, self.match_score, self.standard_loss, val_summary],
+                            feed_dict={
+                                self.input1: input1,
+                                self.input2: input2,
+                                self.label: label
+                            }
+                        )
+                    epoch_loss.append(loss)
+                    epoch_standard_loss.append(standard_loss)
+                    end_train = time.time()
+                    step += 1
+
+                    # val step display
+                    if step % self.display_while_n_step == 0:
+                        print(
+                            "val_step<<: step: {0}"
+                            ", epoch: {1}"
+                            ", loss: {2}"
+                            ", match_score: {3}"
+                            ", now_mean_standard_loss: {6}"
+                            ", now_mean_loss: {7}"
+                            ", train_time: {4}s"
+                            ", data_read_batch_time: {5}s"
+                                .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
+                                    end_data_read - start_data_read, np.mean(epoch_standard_loss), np.mean(epoch_loss)))
+                        pass
+                    pass
+                # one val epoch display
+                print(
+                    'val_epoch<<: epoch: {0}'
+                    ', epoch_standard_loss: {1}'
+                    ', epoch_loss: {2}'
+                        .format(ep, np.mean(epoch_standard_loss),
+                                np.mean(np.mean(epoch_loss))))
+                pass
 
             Epoch += 1
+
+            pass
         pass
 
     def restore(self, **options):
@@ -350,4 +407,4 @@ if __name__ == '__main__':
                 max_time_step=train_data_handle.char_fixed_length)
     model.build_loss()
     model.train(epoch=100, save_path='./check/', save_while_n_step=10000, val_while_n_epoch=2,
-                data=train_data_handle, char=True)
+                data=train_data_handle, char=True, display_shilw_n_step=1, code_test=True)
