@@ -175,9 +175,9 @@ class Data:
             for i in range(0, self.val_batch_num):
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
-                    data1[i, :, :] = self.embeding_char(char_symbol(q1))
-                    data2[i, :, :] = self.embeding_char(char_symbol(q2))
-                    label[i] = y
+                    data1[j, :, :] = self.embeding_char(char_symbol(q1))
+                    data2[j, :, :] = self.embeding_char(char_symbol(q2))
+                    label[j] = y
                     pass
                 yield data1, data2, label
                 pass
@@ -189,9 +189,9 @@ class Data:
             for i in range(0, self.val_batch_num):
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
-                    data1[i, :, :] = self.embeding_word(word_symbol(q1))
-                    data2[i, :, :] = self.embeding_word(word_symbol(q2))
-                    label[i] = y
+                    data1[j, :, :] = self.embeding_word(word_symbol(q1))
+                    data2[j, :, :] = self.embeding_word(word_symbol(q2))
+                    label[j] = y
                     pass
                 yield data1, data2, label
                 pass
