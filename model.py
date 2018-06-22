@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
+from tensorflow.python import debug as tf_debug
 import pandas as pd
 import time
 
@@ -208,7 +209,7 @@ class Model:
 
         # record step
         step = tf.Variable(0, trainable=False)
-        step_up = tf.assign_add(step, 1)
+        # step_up = tf.assign_add(step, 1)
 
         # opt
         opt = tf.train.AdamOptimizer(0.01)
@@ -222,12 +223,15 @@ class Model:
 
         train_summary = tf.summary.merge_all(self.TRAIN_C)
         val_summary = tf.summary.merge_all(self.VAL_C)
-        writer = tf.summary.FileWriter(self.save_path + '-summary-')
 
         # saveer
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=100, filename=save_name)
 
         sess = tf.Session()
+        # sess = tf_debug.TensorBoardDebugWrapperSession(sess, "localhost:700")
+
+        writer = tf.summary.FileWriter(self.save_path + '-summary-', graph=sess.graph)
+
         sess.run(tf.global_variables_initializer())
 
         Epoch = 0
@@ -292,12 +296,12 @@ class Model:
                       "train_time: {4}s, data_read_batch_time: {5}s"
                       .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
                               end_data_read - start_data_read))
-                if (sess.run(step) % self.save_while_n_step == 0) and (sess.run(step) != 0):
+                if sess.run(step) % self.save_while_n_step == 0:
                     writer.add_summary(summary, global_step=sess.run(step))
                     saver.save(sess, self.save_path + '-ckpt-', global_step=sess.run(step), write_meta_graph=True)
                 pass
 
-            if (ep % self.val_while_n_epoch == 0) and (ep != 0):
+            if ep % self.val_while_n_epoch == 0:
                 print('>>----------val-----------<<:')
                 gen = data.gen_val(char=char, word=word)
                 while True:

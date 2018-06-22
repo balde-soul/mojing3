@@ -65,7 +65,7 @@ parser.add_option(
     action='store',
     type=int,
     dest='SaveWhileNStep',
-    default=10000,
+    default=2,
     help='while n step, would save summary and checkpoint, default 10000'
 )
 parser.add_option(
