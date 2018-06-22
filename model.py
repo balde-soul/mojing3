@@ -370,7 +370,7 @@ class Model:
                             ", now_mean_loss: {7}"
                             ", train_time: {4}s"
                             ", data_read_batch_time: {5}s"
-                                .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
+                                .format(step, Epoch, loss, match_score, end_train - start_train,
                                     end_data_read - start_data_read, np.mean(epoch_standard_loss), np.mean(epoch_loss)))
                         pass
                     pass
