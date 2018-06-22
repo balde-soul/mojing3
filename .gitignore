@@ -3,3 +3,4 @@ check/*
 __pycache__/*
 __pycache__
 check
+test/*
