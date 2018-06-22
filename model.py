@@ -336,7 +336,7 @@ class Model:
                 gen = data.gen_val(char=char, word=word)
                 epoch_loss = []
                 epoch_standard_loss = []
-                step = 0
+                v_step = 0
                 while True:
                     try:
                         start_data_read = time.time()
@@ -357,10 +357,10 @@ class Model:
                     epoch_loss.append(loss)
                     epoch_standard_loss.append(standard_loss)
                     end_train = time.time()
-                    step += 1
+                    v_step += 1
 
                     # val step display
-                    if step % self.display_while_n_step == 0:
+                    if v_step % self.display_while_n_step == 0:
                         print(
                             "val_step<<: step: {0}"
                             ", epoch: {1}"
@@ -370,7 +370,7 @@ class Model:
                             ", now_mean_loss: {7}"
                             ", train_time: {4}s"
                             ", data_read_batch_time: {5}s"
-                                .format(step, Epoch, loss, match_score, end_train - start_train,
+                                .format(v_step, Epoch, loss, match_score, end_train - start_train,
                                     end_data_read - start_data_read, np.mean(epoch_standard_loss), np.mean(epoch_loss)))
                         pass
                     pass
