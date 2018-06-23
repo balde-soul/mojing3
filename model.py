@@ -85,8 +85,10 @@ class Model:
         self.hidden_unit = options.pop('hidden_unit', self.hidden_unit)
         self.max_time_step = options.pop('max_time_step', self.max_time_step)
         self.batch_size = self.batch_size
-        self.input1 = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, self.embeding_len], name='input-1')
-        self.input2 = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, self.embeding_len], name='input-2')
+        self.input1 = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, self.embeding_len],
+                                     name='input-1')
+        self.input2 = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, self.embeding_len],
+                                     name='input-2')
         self.label = tf.placeholder(dtype=tf.float32, shape=[self.batch_size], name='label')
         lstm_cell_list = []
         for unit in self.hidden_unit:
@@ -157,29 +159,22 @@ class Model:
         cosine_coss = tf.div(tf.reduce_sum(tf.multiply(self.output1[:, -1, :], self.output2[:, -1, :]), axis=-1),
                              tf.multiply(tf.sqrt(tf.reduce_sum(tf.square(self.output1[:, -1, :]), axis=-1)),
                                          tf.sqrt(tf.reduce_sum(tf.square(self.output2[:, -1, :]), axis=-1))))
-        # singal_loss = 0.5 * (self.label * (1 - cosine_coss) + (1 - self.label) * (1 + cosine_coss))
         self.loss = 0.5 * (1 + tf.reduce_mean(cosine_coss - 2 * self.label * cosine_coss))
         _match_score = 0.5 * (1 + cosine_coss)
         self.match_score = 0.5 * (1 + tf.reduce_mean(cosine_coss))
         self.standard_loss = tf.reduce_mean(tf.losses.log_loss(self.label, _match_score, epsilon=1e-15))
         tf.add_to_collection(
             self.TRAIN_C,
-            tf.summary.scalar(name='loss', tensor=self.loss))
-        tf.add_to_collection(
-            self.TRAIN_C,
-            tf.summary.scalar(name='loss', tensor=self.loss))
+            tf.summary.scalar(name='tr_loss', tensor=self.loss))
         tf.add_to_collection(
             self.VAL_C,
-            tf.summary.scalar(name='match_loss', tensor=self.match_score))
+            tf.summary.scalar(name='v_loss', tensor=self.loss))
+        tf.add_to_collection(
+            self.VAL_C,
+            tf.summary.scalar(name='v_match_loss', tensor=self.standard_loss))
         tf.add_to_collection(
             self.TRAIN_C,
-            tf.summary.scalar(name='match_loss', tensor=self.match_score))
-        tf.add_to_collection(
-            self.TEST_C,
-            tf.summary.scalar(name='match_loss', tensor=self.match_score))
-        tf.add_to_collection(
-            self.TEST_C,
-            tf.summary.scalar(name='match_loss', tensor=self.match_score))
+            tf.summary.scalar(name='tr_match_loss', tensor=self.standard_loss))
         pass
 
     def train(self, **options):
@@ -219,7 +214,7 @@ class Model:
         # step_up = tf.assign_add(step, 1)
 
         # opt
-        opt = tf.train.AdamOptimizer(0.01)
+        opt = tf.train.AdamOptimizer(0.0001)
         mini = opt.minimize(self.loss, global_step=step)
 
         # moving average
