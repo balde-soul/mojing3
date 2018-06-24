@@ -3,12 +3,8 @@
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 import numpy as np
-from tensorflow.python import debug as tf_debug
-import pandas as pd
 import time
 
-input_len = 300
-output_len = 300
 save_name = 'lstm'
 
 
@@ -41,6 +37,7 @@ class Model:
         self.loss = None
         self.standard_loss = None
 
+        self.basic_lr = 0.0001
         self.retrain = False
         self.retrain_file = ''
         self.save_path = ''
@@ -190,6 +187,7 @@ class Model:
         :keyword data: special Data obj to handle generator data input feed
         :keyword cahr: special use data to generate char embeding, set True
         :keyword word: special use data to generate word embeding, set True
+        :keyword basic_lr: special the basic learning rate, default is 0.0001
         :return: 
         """
         self.retrain = options.pop('retrain', self.retrain)
@@ -199,6 +197,7 @@ class Model:
         self.save_path = options.pop('save_path', self.save_path)
         assert self.save_path != '', 'save_path, train'
         self.epoch = options.pop('epoch', self.epoch)
+        self.basic_lr = options.pop('epoch', self.basic_lr)
         self.val_while_n_epoch = options.pop('val_while_n_epoch', self.val_while_n_epoch)
         self.save_while_n_step = options.pop('save_while_n_step', self.save_while_n_step)
         self.display_while_n_step = options.pop('display_shilw_n_step', self.display_while_n_step)
@@ -214,7 +213,7 @@ class Model:
         # step_up = tf.assign_add(step, 1)
 
         # opt
-        opt = tf.train.AdamOptimizer(0.0001)
+        opt = tf.train.AdamOptimizer(self.basic_lr)
         mini = opt.minimize(self.loss, global_step=step)
 
         # moving average
@@ -306,7 +305,7 @@ class Model:
                         ", match_score: {3}"
                         ", now_mean_standard_loss: {6}"
                         ", now_mean_loss: {7}"
-                        "train_time: {4}s"
+                        ", train_time: {4}s"
                         ", data_read_batch_time: {5}s"
                             .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
                                     end_data_read - start_data_read, np.mean(epoch_standard_loss),
