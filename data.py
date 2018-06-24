@@ -227,7 +227,7 @@ class Data:
 
 
 if __name__ == '__main__':
-    data = Data('./Data/train.csv', train=True, batch_size=32, val_rate=0.1)
+    data = Data('../../Data/mojing3/train.csv', train=True, batch_size=32, val_rate=0.1)
     gen_train = data.gen_train(char=True)
     gen_val = data.gen_val(char=True)
     x, y, l, mask_x, mask_y = gen_train.__next__()

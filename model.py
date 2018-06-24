@@ -425,7 +425,7 @@ class Model:
 if __name__ == '__main__':
     import data
     model = Model()
-    train_data_handle = data.Data(sources='./Data/train.csv', batch_size=32, val_rate=0.1, train=True)
+    train_data_handle = data.Data(sources='../../Data/mojing3/train.csv', batch_size=32, val_rate=0.1, train=True)
     model.build(embeding_len=300, batch_size=32, hidden_unit=[200, 50],
                 max_time_step=train_data_handle.char_fixed_length)
     model.build_loss()
