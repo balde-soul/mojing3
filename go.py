@@ -61,6 +61,13 @@ parser.add_option(
     help='set train epoch, default 1000'
 )
 parser.add_option(
+    '--cpu',
+    action='store_false',
+    dest='UseCpu',
+    default=True,
+    help='special to use cpu'
+)
+parser.add_option(
     '--br',
     '--basic_lr',
     action='store',
@@ -143,5 +150,5 @@ if __name__ == '__main__':
     model.train(epoch=options.Epoch, save_path='./check/', save_while_n_step=options.SaveWhileNStep,
                 val_while_n_epoch=options.ValWhileNEpoch,
                 data=data_handle, char=char, word=word, display_shilw_n_step=options.DisplayWhileNStep,
-                basic_lr = options.LearningRate)
+                basic_lr = options.LearningRate, device=options.UseCpu)
     pass

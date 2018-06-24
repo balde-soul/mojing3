@@ -37,6 +37,7 @@ class Model:
         self.loss = None
         self.standard_loss = None
 
+        self.device = True
         self.basic_lr = 0.0001
         self.retrain = False
         self.retrain_file = ''
@@ -195,6 +196,14 @@ class Model:
         :keyword basic_lr: special the basic learning rate, default is 0.0001
         :return: 
         """
+        self.device = options.pop('device', self.device)
+        if self.device is False:
+            import os
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+            pass
+        else:
+            pass
         self.retrain = options.pop('retrain', self.retrain)
         self.retrain_file = options.pop('retrain_file', self.retrain_file)
         if self.retrain is True:
@@ -233,6 +242,11 @@ class Model:
         # saveer
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=100, filename=save_name)
 
+        # if self.device is False:
+        #     sess = tf.Session(config = tf.ConfigProto(device_count={'/cpu': 0}))
+        # else:
+        #     sess = tf.Session()
+        #     pass
         sess = tf.Session()
         # sess = tf_debug.TensorBoardDebugWrapperSession(sess, "localhost:700")
 
@@ -416,4 +430,4 @@ if __name__ == '__main__':
                 max_time_step=train_data_handle.char_fixed_length)
     model.build_loss()
     model.train(epoch=100, save_path='./check/', save_while_n_step=10000, val_while_n_epoch=2,
-                data=train_data_handle, char=True, display_shilw_n_step=1, code_test=True)
+                data=train_data_handle, char=True, display_shilw_n_step=1, code_test=True, device=False)
