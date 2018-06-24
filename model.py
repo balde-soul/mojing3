@@ -219,7 +219,7 @@ class Model:
 
         # opt
         opt = tf.train.AdamOptimizer(self.basic_lr)
-        mini = opt.minimize(self.loss, global_step=step)
+        mini = opt.minimize(self.standard_loss, global_step=step)
 
         # moving average
         ema = tf.train.ExponentialMovingAverage(0.99, step)
@@ -239,6 +239,10 @@ class Model:
         writer = tf.summary.FileWriter(self.save_path + '-summary-', graph=sess.graph)
 
         sess.run(tf.global_variables_initializer())
+
+        # continue train
+        if self.retrain:
+            saver.restore(sess, self.retrain_file)
 
         Epoch = 0
 
