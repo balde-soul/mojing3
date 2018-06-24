@@ -3,6 +3,7 @@ import model
 import data
 from optparse import OptionParser
 
+embeding_len = 300
 parser = OptionParser(usage="usage:%prog [options] arg1 arg2")
 parser.add_option(
     '--dt',
@@ -136,7 +137,7 @@ if __name__ == '__main__':
     print('display while {0} step'.format(options.DisplayWhileNStep))
     print('save while {0} step'.format(options.SaveWhileNStep))
     print('val while {0} epoch'.format(options.ValWhileNEpoch))
-    model.build(embeding_len=300, batch_size=options.BatchSize, hidden_unit=hidden_unit,
+    model.build(embeding_len=embeding_len, batch_size=options.BatchSize, hidden_unit=hidden_unit,
                 max_time_step=max_time_step)
     model.build_loss()
     model.train(epoch=options.Epoch, save_path='./check/', save_while_n_step=options.SaveWhileNStep,

@@ -110,7 +110,8 @@ class Data:
         row = 0
         for i in cs:
             data[row, :] = infoc.loc[i]
-        return data
+            row += 1
+        return data, row - 1
         pass
 
     def embeding_word(self, ws):
@@ -118,7 +119,8 @@ class Data:
         row = 0
         for i in ws:
             data[row, :] = infoc.loc[i]
-        return data
+            row += 1
+        return data, row - 1
         pass
 
     def gen_train(self, **options):
@@ -134,31 +136,39 @@ class Data:
         assert (char != word) is True, "char word is true in the same time"
         gen_one = self.gen_data(training=True)
         if char is True:
-            data1 = np.zeros([self.batch_size, self.char_fixed_length, 300])
-            data2 = np.zeros([self.batch_size, self.char_fixed_length, 300])
-            label = np.zeros([self.batch_size])
+            data1 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+            data1_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
+            data2 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+            data2_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
+            label = np.zeros([self.batch_size], dtype=np.float32)
             for i in range(0, self.train_batch_num):
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
-                    data1[j, :, :] = self.embeding_char(char_symbol(q1))
-                    data2[j, :, :] = self.embeding_char(char_symbol(q2))
+                    data1[j, :, :], _mask1 = self.embeding_char(char_symbol(q1))
+                    data1_mask[j, _mask1] = 1.0
+                    data2[j, :, :], _mask2 = self.embeding_char(char_symbol(q2))
+                    data2_mask[j, _mask2] = 1.0
                     label[j] = y
                     pass
-                yield data1, data2, label
+                yield data1, data2, label, data1_mask, data2_mask
                 pass
 
         elif word is True:
-            data1 = np.zeros([self.batch_size, self.word_fixed_length, 300])
-            data2 = np.zeros([self.batch_size, self.word_fixed_length, 300])
-            label = np.zeros([self.batch_size])
+            data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+            data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+            data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+            data2_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+            label = np.zeros([self.batch_size], dtype=np.float32)
             for i in range(0, self.train_batch_num):
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
-                    data1[j, :, :] = self.embeding_word(word_symbol(q1))
-                    data2[j, :, :] = self.embeding_word(word_symbol(q2))
+                    data1[j, :, :], _mask1 = self.embeding_word(word_symbol(q1))
+                    data1_mask[j, _mask1] = 1.0
+                    data2[j, :, :], _mask2 = self.embeding_word(word_symbol(q2))
+                    data2_mask[j, _mask2] = 1.0
                     label[j] = y
                     pass
-                yield data1, data2, label
+                yield data1, data2, label, data1_mask, data2_mask
                 pass
         else:
             print("char or word should be true, gen_train")
@@ -170,31 +180,39 @@ class Data:
         assert char & word is not True, "char word is true in the same time"
         gen_one = self.gen_data(valing=True)
         if char is True:
-            data1 = np.zeros([self.batch_size, self.char_fixed_length, 300])
-            data2 = np.zeros([self.batch_size, self.char_fixed_length, 300])
+            data1 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+            data1_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
+            data2 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+            data2_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
             label = np.zeros([self.batch_size])
             for i in range(0, self.val_batch_num):
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
-                    data1[j, :, :] = self.embeding_char(char_symbol(q1))
-                    data2[j, :, :] = self.embeding_char(char_symbol(q2))
+                    data1[j, :, :], _mask1 = self.embeding_char(char_symbol(q1))
+                    data1_mask[j, _mask1] = 1.0
+                    data2[j, :, :], _mask2 = self.embeding_char(char_symbol(q2))
+                    data2_mask[j, _mask2] = 1.0
                     label[j] = y
                     pass
-                yield data1, data2, label
+                yield data1, data2, label, data1_mask, data2_mask
                 pass
 
         elif word is True:
-            data1 = np.zeros([self.batch_size, self.word_fixed_length, 300])
-            data2 = np.zeros([self.batch_size, self.word_fixed_length, 300])
-            label = np.zeros([self.batch_size])
+            data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+            data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+            data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+            data2_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+            label = np.zeros([self.batch_size], dtype=np.float32)
             for i in range(0, self.val_batch_num):
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
-                    data1[j, :, :] = self.embeding_word(word_symbol(q1))
-                    data2[j, :, :] = self.embeding_word(word_symbol(q2))
+                    data1[j, :, :], _mask1 = self.embeding_word(word_symbol(q1))
+                    data1_mask[j, _mask1] = 1.0
+                    data2[j, :, :], _mask2 = self.embeding_word(word_symbol(q2))
+                    data2_mask[j, _mask2] = 1.0
                     label[j] = y
                     pass
-                yield data1, data2, label
+                yield data1, data2, label, data1_mask, data2_mask
                 pass
 
         else:
@@ -209,14 +227,30 @@ if __name__ == '__main__':
     data = Data('./Data/train.csv', train=True, batch_size=32, val_rate=0.1)
     gen_train = data.gen_train(char=True)
     gen_val = data.gen_val(char=True)
-    # b = np.zeros(shape=[3, 4, 5])
-    try:
-        x, y, l = gen_train.__next__()
-    except Exception:
-        print(Exception.__name__)
+    x, y, l, mask_x, mask_y = gen_train.__next__()
+    for mx in zip(mask_x, x):
+        index = np.where(mx[0] == 1.0)
+        assert len(index[0]) == 1, 'in element mask train data1 one mask is not 1'
+        assert True in (mx[1][index[0] + 1] == 0.0), 'in element train data1, mask index is 0.0'
+        assert True in (mx[1][index[0]] != 0.0)
         pass
-    try:
-        x, y, l = gen_val.__next__()
-    except Exception:
-        print(Exception.__name__)
+    for my in zip(mask_y, y):
+        index = np.where(my[0] == 1.0)
+        assert len(index[0]) == 1, 'in element mask train data1 one mask is not 1'
+        assert True in (my[1][index[0] + 1] == 0.0), 'in element train data2, mask index is 0.0'
+        assert True in (my[1][index[0]] != 0.0)
+        pass
+
+    x, y, l, mask_x, mask_y = gen_val.__next__()
+    for mx in zip(mask_x, x):
+        index = np.where(mx[0] == 1.0)
+        assert len(index[0]) == 1, 'in element mask val data1 one mask is not 1'
+        assert True in (mx[1][index[0] + 1] == 0.0), 'in element val data1, mask index is 0.0'
+        assert True in (mx[1][index[0]] != 0.0)
+        pass
+    for my in zip(mask_y, y):
+        index = np.where(my[0] == 1.0)
+        assert len(index[0]) == 1, 'in element mask train data2 one mask is not 1'
+        assert True in (my[1][index[0] + 1] == 0.0), 'in element val data2, mask index is 0.0'
+        assert True in (my[1][index[0]] != 0.0)
         pass

@@ -86,13 +86,13 @@ class Model:
                                      name='input-1')
         self.input2 = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, self.embeding_len],
                                      name='input-2')
-        self.label = tf.placeholder(dtype=tf.float32, shape=[self.batch_size], name='label')
         lstm_cell_list = []
         for unit in self.hidden_unit:
             lstm_cell = rnn.BasicLSTMCell(unit, forget_bias=0, activation=tf.tanh)
             lstm_cell.zero_state(self.batch_size, dtype=tf.float32)
             lstm_cell_list.append(lstm_cell)
         multi = rnn.MultiRNNCell(lstm_cell_list)
+        # output [batch_size, max_time_step, hidden_unit[-1]]
         output1, self.state1 = tf.nn.dynamic_rnn(multi, self.input1, dtype=tf.float32)
         output2, self.state2 = tf.nn.dynamic_rnn(multi, self.input2, dtype=tf.float32)
         # self.output1 = tf.nn.softmax(output1, axis=-1)
@@ -153,9 +153,14 @@ class Model:
         pass
 
     def build_loss(self):
-        cosine_coss = tf.div(tf.reduce_sum(tf.multiply(self.output1[:, -1, :], self.output2[:, -1, :]), axis=-1),
-                             tf.multiply(tf.sqrt(tf.reduce_sum(tf.square(self.output1[:, -1, :]), axis=-1)),
-                                         tf.sqrt(tf.reduce_sum(tf.square(self.output2[:, -1, :]), axis=-1))))
+        self.label = tf.placeholder(dtype=tf.float32, shape=[self.batch_size], name='label')
+        self.output1_mask = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, 1])
+        self.output2_mask = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, 1])
+        apply_mask1 = tf.reduce_sum(self.output1 * self.output1_mask, axis=1)
+        apply_mask2 = tf.reduce_sum(self.output2 * self.output1_mask, axis=1)
+        cosine_coss = tf.div(tf.reduce_sum(tf.multiply(apply_mask1, apply_mask2), axis=-1),
+                             tf.multiply(tf.sqrt(tf.reduce_sum(tf.square(apply_mask1), axis=-1)),
+                                         tf.sqrt(tf.reduce_sum(tf.square(apply_mask2), axis=-1))))
         self.loss = 0.5 * (1 + tf.reduce_mean(cosine_coss - 2 * self.label * cosine_coss))
         _match_score = 0.5 * (1 + cosine_coss)
         self.match_score = 0.5 * (1 + tf.reduce_mean(cosine_coss))
@@ -245,7 +250,7 @@ class Model:
             while True:
                 try:
                     start_data_read = time.time()
-                    input1, input2, label = gen.__next__()
+                    input1, input2, label, mask1, mask2 = gen.__next__()
                     end_data_read = time.time()
                 except Exception:
                     break
@@ -256,7 +261,9 @@ class Model:
                         feed_dict={
                             self.input1: input1,
                             self.input2: input2,
-                            self.label: label
+                            self.label: label,
+                            self.output1_mask: mask1,
+                            self.output2_mask: mask2
                         }
                     )
                 end_train = time.time()
@@ -269,7 +276,7 @@ class Model:
                     for i in range(0, 10):
                         try:
                             start_data_read = time.time()
-                            input1, input2, label = genv.__next__()
+                            input1, input2, label, mask1, mask2 = genv.__next__()
                             end_data_read = time.time()
                         except Exception:
                             break
@@ -280,7 +287,9 @@ class Model:
                                 feed_dict={
                                     self.input1: input1,
                                     self.input2: input2,
-                                    self.label: label
+                                    self.label: label,
+                                    self.output1_mask: mask1,
+                                    self.output2_mask: mask2
                                 }
                             )
                         end_train = time.time()
@@ -334,7 +343,7 @@ class Model:
                 while True:
                     try:
                         start_data_read = time.time()
-                        input1, input2, label = gen.__next__()
+                        input1, input2, label, mask1, mask2 = gen.__next__()
                         end_data_read = time.time()
                     except Exception:
                         break
@@ -345,7 +354,9 @@ class Model:
                             feed_dict={
                                 self.input1: input1,
                                 self.input2: input2,
-                                self.label: label
+                                self.label: label,
+                                self.output1_mask: mask1,
+                                self.output2_mask: mask2
                             }
                         )
                     epoch_loss.append(loss)
