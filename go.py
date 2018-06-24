@@ -43,6 +43,15 @@ parser.add_option(
     help='set batch size , default 32'
 )
 parser.add_option(
+    '--sp',
+    '--save_path',
+    action='store',
+    type=str,
+    dest='SavePath',
+    default='./checl/',
+    help='special the path to save model and summary'
+)
+parser.add_option(
     '--hu',
     '--hidden_unit',
     action='store',
@@ -147,7 +156,7 @@ if __name__ == '__main__':
     model.build(embeding_len=embeding_len, batch_size=options.BatchSize, hidden_unit=hidden_unit,
                 max_time_step=max_time_step)
     model.build_loss()
-    model.train(epoch=options.Epoch, save_path='./check/', save_while_n_step=options.SaveWhileNStep,
+    model.train(epoch=options.Epoch, save_path=options.SavePath, save_while_n_step=options.SaveWhileNStep,
                 val_while_n_epoch=options.ValWhileNEpoch,
                 data=data_handle, char=char, word=word, display_shilw_n_step=options.DisplayWhileNStep,
                 basic_lr = options.LearningRate, device=options.UseCpu)
