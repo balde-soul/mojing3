@@ -5,8 +5,11 @@ import sklearn.model_selection as ms
 import random
 import sys
 
-infoq = pd.read_csv('./Data/question.csv', index_col=0)
-infoc = pd.read_csv('./Data/char_embed.txt', header=None, sep=' ', index_col=0)
+#project/version  Data
+#./mojing3/v1/* ./Data/mojing3/*
+data_root = '../../Data/mojing3/'
+infoq = pd.read_csv(data_root + 'question.csv', index_col=0)
+infoc = pd.read_csv(data_root + 'char_embed.txt', header=None, sep=' ', index_col=0)
 # char sentence max len
 char_fixed_length = max([len(i.split(' ')) for i in infoq.chars])
 word_fixed_length = max(len(i.split(' ')) for i in infoq.words)

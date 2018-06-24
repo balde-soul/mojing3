@@ -48,7 +48,7 @@ parser.add_option(
     action='store',
     type=str,
     dest='SavePath',
-    default='./checl/',
+    default='./check/',
     help='special the path to save model and summary'
 )
 parser.add_option(
@@ -117,12 +117,13 @@ args = parser.parse_args()
 if __name__ == '__main__':
     (options, args) = parser.parse_args()
     assert options.ValRate < 0.5, 'val rate should be smaller than 0.5'
+    data_root = '../../Data/mojing3/'
     if options.Mode == 'train':
-        sources = './Data/train.csv'
+        sources = data_root + 'train.csv'
         train = True
         test = False
     else:
-        sources = './Data/test.csv'
+        sources = data_root + 'test.csv'
         train = False
         test = True
         pass
