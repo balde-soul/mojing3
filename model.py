@@ -102,6 +102,18 @@ class Model:
         #
         self.output1 = tf.nn.l2_normalize(output1, axis=2)
         self.output2 = tf.nn.l2_normalize(output2, axis=2)
+
+        self.output1_mask = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, 1])
+        self.output2_mask = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, 1])
+
+        self.apply_mask1 = tf.reduce_sum(self.output1 * self.output1_mask, axis=1)
+        self.apply_mask2 = tf.reduce_sum(self.output2 * self.output1_mask, axis=1)
+
+        self.cosine_coss = tf.div(tf.reduce_sum(tf.multiply(self.apply_mask1, self.apply_mask2), axis=-1),
+                                  tf.multiply(tf.sqrt(tf.reduce_sum(tf.square(self.apply_mask1), axis=-1)),
+                                              tf.sqrt(tf.reduce_sum(tf.square(self.apply_mask2), axis=-1))))
+
+        self.match_score = 0.5 * (1 + tf.reduce_mean(self.cosine_coss))
         # self.output1 = tf.transpose(
         #     tf.div(tf.transpose(output1, [2, 0, 1]), tf.reduce_mean(tf.square(output1), axis=2)), [1, 2, 0])
         # # self.output2 = tf.nn.softmax(output1, axis=-1)
@@ -155,16 +167,9 @@ class Model:
 
     def build_loss(self):
         self.label = tf.placeholder(dtype=tf.float32, shape=[self.batch_size], name='label')
-        self.output1_mask = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, 1])
-        self.output2_mask = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_time_step, 1])
-        apply_mask1 = tf.reduce_sum(self.output1 * self.output1_mask, axis=1)
-        apply_mask2 = tf.reduce_sum(self.output2 * self.output1_mask, axis=1)
-        cosine_coss = tf.div(tf.reduce_sum(tf.multiply(apply_mask1, apply_mask2), axis=-1),
-                             tf.multiply(tf.sqrt(tf.reduce_sum(tf.square(apply_mask1), axis=-1)),
-                                         tf.sqrt(tf.reduce_sum(tf.square(apply_mask2), axis=-1))))
-        self.loss = 0.5 * (1 + tf.reduce_mean(cosine_coss - 2 * self.label * cosine_coss))
-        _match_score = 0.5 * (1 + cosine_coss)
-        self.match_score = 0.5 * (1 + tf.reduce_mean(cosine_coss))
+
+        self.loss = 0.5 * (1 + tf.reduce_mean(self.cosine_coss - 2 * self.label * self.cosine_coss))
+        _match_score = 0.5 * (1 + self.cosine_coss)
         self.standard_loss = tf.reduce_mean(tf.losses.log_loss(self.label, _match_score, epsilon=1e-15))
         tf.add_to_collection(
             self.TRAIN_C,
@@ -178,6 +183,10 @@ class Model:
         tf.add_to_collection(
             self.TRAIN_C,
             tf.summary.scalar(name='tr_match_loss', tensor=self.standard_loss))
+        pass
+
+    def deploy(self):
+
         pass
 
     def train(self, **options):

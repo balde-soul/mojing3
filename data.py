@@ -183,12 +183,12 @@ class Data:
         assert char & word is not True, "char word is true in the same time"
         gen_one = self.gen_data(valing=True)
         if char is True:
-            data1 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
-            data1_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
-            data2 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
-            data2_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
-            label = np.zeros([self.batch_size])
             for i in range(0, self.val_batch_num):
+                data1 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+                data1_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
+                data2 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+                data2_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
+                label = np.zeros([self.batch_size])
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
                     data1[j, :, :], _mask1 = self.embeding_char(char_symbol(q1))
@@ -201,12 +201,12 @@ class Data:
                 pass
 
         elif word is True:
-            data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
-            data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
-            data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
-            data2_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
-            label = np.zeros([self.batch_size], dtype=np.float32)
             for i in range(0, self.val_batch_num):
+                data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+                data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+                data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+                data2_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+                label = np.zeros([self.batch_size], dtype=np.float32)
                 for j in range(0, self.batch_size):
                     q1, q2, y = gen_one.__next__()
                     data1[j, :, :], _mask1 = self.embeding_word(word_symbol(q1))
@@ -222,7 +222,40 @@ class Data:
             print("char or word should be true, gen_val")
         pass
 
-    def gen_test(self):
+    def gen_test(self, **options):
+        assert self.test is True, 'test label has not been set, in __init__, set --test=True'
+        char = options.pop('char', False)
+        word = options.pop('word', False)
+        assert char & word is not True, "char word is true in the same time"
+        gen_one = self.gen_data()
+        if char:
+            for i in range(0, self.test_data_num):
+                data1 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
+                data1_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
+                data2 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
+                data2_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
+                q1, q2 = gen_one.__next__()
+                data1[0, :, :], _mask1 = self.embeding_char(char_symbol(q1))
+                data1_mask[0, _mask1] = 1.0
+                data2[0, :, :], _mask2 = self.embeding_char(char_symbol(q2))
+                data2_mask[0, _mask2] = 1.0
+                yield data1, data2, data1_mask, data2_mask
+                pass
+            pass
+        if word:
+            for i in range(0, self.test_data_num):
+                data1 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
+                data1_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
+                data2 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
+                data2_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
+                q1, q2 = gen_one.__next__()
+                data1[0, :, :], _mask1 = self.embeding_word(word_symbol(q1))
+                data1_mask[0, _mask1] = 1.0
+                data2[0, :, :], _mask2 = self.embeding_char(word_symbol(q2))
+                data2_mask[0, _mask2] = 1.0
+                yield data1, data2, data1_mask, data2_mask
+
+
         pass
 
 
