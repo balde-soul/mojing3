@@ -41,19 +41,20 @@ class Data:
         self.char_fixed_length = char_fixed_length
         self.word_fixed_length = word_fixed_length
         data = np.array(pd.read_csv(sources))
+        self.sample_num = data.shape[0]
         if self.train is True:
-            assert self.test is False
-            assert self.batch_size is not None
+            assert self.test is False, 'test should not be set'
+            assert self.batch_size is not None, 'batch size should be specified'
             self.x_tr, self.x_te, self.y_tr, self.y_te = \
                 ms.train_test_split(data[:, 1: 3], data[:, 0], test_size=self.val_rate)
             self.train_batch_num = int(np.ceil(len(self.y_tr) / self.batch_size))
             self.val_batch_num = int(np.ceil(len(self.y_te) / self.batch_size))
         if self.test is True:
-            assert self.train is False
-            assert self.val_rate is None
-            assert self.batch_size is None
+            assert self.train is False, 'train should not be set'
+            assert self.val_rate is None, 'val rate should not be set'
+            assert self.batch_size is not None, 'batch size should be specified'
             self.x = data
-            self.test_data_num = data.shape[0]
+            self.test_batch_num = int(np.ceil(len(self.x) / self.batch_size))
         pass
 
     def set_batch_size(self, batch_szie):
@@ -229,33 +230,37 @@ class Data:
         assert char & word is not True, "char word is true in the same time"
         gen_one = self.gen_data()
         if char:
-            for i in range(0, self.test_data_num):
-                data1 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
-                data1_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
-                data2 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
-                data2_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
-                q1, q2 = gen_one.__next__()
-                data1[0, :, :], _mask1 = self.embeding_char(char_symbol(q1))
-                data1_mask[0, _mask1] = 1.0
-                data2[0, :, :], _mask2 = self.embeding_char(char_symbol(q2))
-                data2_mask[0, _mask2] = 1.0
-                yield data1, data2, data1_mask, data2_mask
+            for i in range(0, self.sample_num):
+                data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+                data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+                data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+                data2_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+                for j in range(0, self.batch_size):
+                    q1, q2 = gen_one.__next__()
+                    data1[j, :, :], _mask1 = self.embeding_char(char_symbol(q1))
+                    data1_mask[j, _mask1] = 1.0
+                    data2[j, :, :], _mask2 = self.embeding_char(char_symbol(q2))
+                    data2_mask[j, _mask2] = 1.0
+                    yield data1, data2, data1_mask, data2_mask
+                    pass
                 pass
             pass
         if word:
-            for i in range(0, self.test_data_num):
-                data1 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
-                data1_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
-                data2 = np.zeros([1, self.word_fixed_length, 300], dtype=np.float32)
-                data2_mask = np.zeros([1, self.word_fixed_length, 1], dtype=np.float32)
-                q1, q2 = gen_one.__next__()
-                data1[0, :, :], _mask1 = self.embeding_word(word_symbol(q1))
-                data1_mask[0, _mask1] = 1.0
-                data2[0, :, :], _mask2 = self.embeding_char(word_symbol(q2))
-                data2_mask[0, _mask2] = 1.0
-                yield data1, data2, data1_mask, data2_mask
-
-
+            for i in range(0, self.sample_num):
+                data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+                data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+                data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
+                data2_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+                for j in range(0, self.batch_size):
+                    q1, q2 = gen_one.__next__()
+                    data1[j, :, :], _mask1 = self.embeding_word(word_symbol(q1))
+                    data1_mask[j, _mask1] = 1.0
+                    data2[j, :, :], _mask2 = self.embeding_char(word_symbol(q2))
+                    data2_mask[j, _mask2] = 1.0
+                    yield data1, data2, data1_mask, data2_mask
+                    pass
+                pass
+            pass
         pass
 
 

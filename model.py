@@ -4,6 +4,7 @@ import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 import numpy as np
 import time
+import Putil.tf.ops_process as tfop
 
 save_name = 'lstm'
 
@@ -326,7 +327,7 @@ class Model:
                               ", match_score: {3}"
                               ", now_mean_standard_loss: {6}"
                               ", now_mean_loss"
-                              "train_time: {4}s"
+                              ", train_time: {4}s"
                               ", data_read_batch_time: {5}s"
                               .format(sess.run(step), Epoch, loss, match_score, end_train - start_train,
                                       end_data_read - start_data_read, standard_loss))
@@ -350,7 +351,7 @@ class Model:
 
                 if sess.run(step) % self.save_while_n_step == 0:
                     writer.add_summary(summary, global_step=sess.run(step))
-                    saver.save(sess, self.save_path + '-ckpt-', global_step=sess.run(step), write_meta_graph=True)
+                    saver.save(sess, self.save_path + str(sess.run(step)), global_step=sess.run(step), write_meta_graph=True)
                     pass
                 pass
 
@@ -367,6 +368,7 @@ class Model:
                 epoch_loss = []
                 epoch_standard_loss = []
                 v_step = 0
+                summary = None
                 while True:
                     try:
                         start_data_read = time.time()
@@ -413,8 +415,9 @@ class Model:
                     ', epoch_loss: {2}'
                         .format(ep, np.mean(epoch_standard_loss),
                                 np.mean(np.mean(epoch_loss))))
+                writer.add_summary(summary, global_step=sess.run(step))
+                saver.save(sess, self.save_path + '-v-', global_step=sess.run(step), write_meta_graph=True)
                 pass
-
             Epoch += 1
 
             pass
@@ -423,10 +426,40 @@ class Model:
     def restore(self, **options):
         restore_file = options.pop('weight', None)
         restore_moving = options.pop('moving', False)
+        data = options.pop('data', None)
+        char = options.pop('char', False)
+        word = options.pop('word', False)
+        assert char == word, 'word and char can not be the same'
+        assert data is not None, 'data not special'
+        assert data.test is True, 'data is not test data'
+        sess = tf.Session()
+        if restore_moving:
+            saver = tf.train.Saver(tfop.original_apply_moving(sess))
+        else:
+            saver = tf.train.Saver()
+            saver.restore(sess, restore_file)
+            pass
+        data_gen = data.gen_test(word=word, char=char)
+        time_coss = list()
+        while True:
+            try:
+                data1, data2, data1_mask, data2_mask = data_gen.__next__()
+                pass
+            except Exception:
+                print('gen data error')
+                break
+                pass
+            begin_time = time.time()
+            match_score = sess.run([self.match_score])
+            end_time = time.time()
+            time_coss.append(end_time - begin_time)
+
+
         pass
 
     def test(self):
-        test_summary = tf.summary.merge_all(self.TEST_C)
+
+
         pass
     pass
 
