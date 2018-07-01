@@ -114,7 +114,7 @@ class Model:
                                   tf.multiply(tf.sqrt(tf.reduce_sum(tf.square(self.apply_mask1), axis=-1)),
                                               tf.sqrt(tf.reduce_sum(tf.square(self.apply_mask2), axis=-1))))
 
-        self.match_score = 0.5 * (1 + tf.reduce_mean(self.cosine_coss))
+        self.match_score = tf.multiply(0.5, (1 + tf.reduce_mean(self.cosine_coss)), name='match_score')
         # self.output1 = tf.transpose(
         #     tf.div(tf.transpose(output1, [2, 0, 1]), tf.reduce_mean(tf.square(output1), axis=2)), [1, 2, 0])
         # # self.output2 = tf.nn.softmax(output1, axis=-1)
@@ -169,9 +169,11 @@ class Model:
     def build_loss(self):
         self.label = tf.placeholder(dtype=tf.float32, shape=[self.batch_size], name='label')
 
-        self.loss = 0.5 * (1 + tf.reduce_mean(self.cosine_coss - 2 * self.label * self.cosine_coss))
+        self.loss = tf.multiply(0.5, (1 + tf.reduce_mean(self.cosine_coss - 2 * self.label * self.cosine_coss)),
+                                name='cosine_loss')
         _match_score = 0.5 * (1 + self.cosine_coss)
-        self.standard_loss = tf.reduce_mean(tf.losses.log_loss(self.label, _match_score, epsilon=1e-15))
+        self.standard_loss = tf.reduce_mean(tf.losses.log_loss(self.label, _match_score, epsilon=1e-15),
+                                            name='log_loss')
         tf.add_to_collection(
             self.TRAIN_C,
             tf.summary.scalar(name='tr_loss', tensor=self.loss))
@@ -187,7 +189,7 @@ class Model:
         pass
 
     def deploy(self):
-
+        self.test_match_score = 0.5 * (1 + self.cosine_coss)
         pass
 
     def train(self, **options):
@@ -238,7 +240,9 @@ class Model:
 
         # opt
         opt = tf.train.AdamOptimizer(self.basic_lr)
-        mini = opt.minimize(self.standard_loss, global_step=step)
+        train_target = self.standard_loss
+        print('training target loss: ' + train_target.name)
+        mini = opt.minimize(train_target, global_step=step)
 
         # moving average
         ema = tf.train.ExponentialMovingAverage(0.99, step)
@@ -427,9 +431,8 @@ class Model:
         restore_file = options.pop('weight', None)
         restore_moving = options.pop('moving', False)
         data = options.pop('data', None)
-        char = options.pop('char', False)
-        word = options.pop('word', False)
-        assert char == word, 'word and char can not be the same'
+
+
         assert data is not None, 'data not special'
         assert data.test is True, 'data is not test data'
         sess = tf.Session()
@@ -439,8 +442,20 @@ class Model:
             saver = tf.train.Saver()
             saver.restore(sess, restore_file)
             pass
+        return sess
+        pass
+
+    def test(self, sess, **options):
+        save_path = options.pop('save_path', '')
+        assert save_path != '', 'should specify save path'
+        data = options.pop('data', None)
+        assert data is not None, 'should set data'
+        char = options.pop('char', False)
+        word = options.pop('word', False)
+        assert char == word, 'word and char can not be the same'
         data_gen = data.gen_test(word=word, char=char)
         time_coss = list()
+        match_score = list()
         while True:
             try:
                 data1, data2, data1_mask, data2_mask = data_gen.__next__()
@@ -450,16 +465,11 @@ class Model:
                 break
                 pass
             begin_time = time.time()
-            match_score = sess.run([self.match_score])
+            match_score.append(list(sess.run([self.test_match_score])))
             end_time = time.time()
             time_coss.append(end_time - begin_time)
-
-
-        pass
-
-    def test(self):
-
-
+            pass
+        return np.reshape(np.array(match_score), [-1])
         pass
     pass
 
@@ -473,3 +483,9 @@ if __name__ == '__main__':
     model.build_loss()
     model.train(epoch=100, save_path='./check/', save_while_n_step=10000, val_while_n_epoch=2,
                 data=train_data_handle, char=True, display_shilw_n_step=1, code_test=True, device=False)
+    sess=tf.Session()
+    sess.close()
+    tf.reset_default_graph()
+    test_data_handle = data.Data(sources='../../Data/mojing3/test.csv', batch_size=32, test=True)
+    model.build(embeding_len=300, batch_size=32, hidden_unit=[200, 50],
+                max_time_step=train_data_handle.char_fixed_length)

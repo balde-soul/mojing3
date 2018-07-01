@@ -230,23 +230,23 @@ class Data:
         assert char & word is not True, "char word is true in the same time"
         gen_one = self.gen_data()
         if char:
-            for i in range(0, self.sample_num):
-                data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
-                data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
-                data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
-                data2_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
+            for i in range(0, self.test_batch_num):
+                data1 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+                data1_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
+                data2 = np.zeros([self.batch_size, self.char_fixed_length, 300], dtype=np.float32)
+                data2_mask = np.zeros([self.batch_size, self.char_fixed_length, 1], dtype=np.float32)
                 for j in range(0, self.batch_size):
                     q1, q2 = gen_one.__next__()
                     data1[j, :, :], _mask1 = self.embeding_char(char_symbol(q1))
                     data1_mask[j, _mask1] = 1.0
                     data2[j, :, :], _mask2 = self.embeding_char(char_symbol(q2))
                     data2_mask[j, _mask2] = 1.0
-                    yield data1, data2, data1_mask, data2_mask
                     pass
+                yield data1, data2, data1_mask, data2_mask
                 pass
             pass
         if word:
-            for i in range(0, self.sample_num):
+            for i in range(0, self.test_batch_num):
                 data1 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
                 data1_mask = np.zeros([self.batch_size, self.word_fixed_length, 1], dtype=np.float32)
                 data2 = np.zeros([self.batch_size, self.word_fixed_length, 300], dtype=np.float32)
@@ -257,8 +257,8 @@ class Data:
                     data1_mask[j, _mask1] = 1.0
                     data2[j, :, :], _mask2 = self.embeding_char(word_symbol(q2))
                     data2_mask[j, _mask2] = 1.0
-                    yield data1, data2, data1_mask, data2_mask
                     pass
+                yield data1, data2, data1_mask, data2_mask
                 pass
             pass
         pass
@@ -295,3 +295,20 @@ if __name__ == '__main__':
         assert True in (my[1][index[0] + 1] == 0.0), 'in element val data2, mask index is 0.0'
         assert True in (my[1][index[0]] != 0.0)
         pass
+
+    data_test = Data('../../Data/mojing3/test.csv', batch_size=32, test=True)
+    gen_test = data_test.gen_test(char=True)
+    x, y, mask_x, mask_y = gen_test.__next__()
+    for mx in zip(mask_x, x):
+        index = np.where(mx[0] == 1.0)
+        assert len(index[0]) == 1, 'in element mask train data1 one mask is not 1'
+        assert True in (mx[1][index[0] + 1] == 0.0), 'in element train data1, mask index is 0.0'
+        assert True in (mx[1][index[0]] != 0.0)
+        pass
+    for my in zip(mask_y, y):
+        index = np.where(my[0] == 1.0)
+        assert len(index[0]) == 1, 'in element mask test data1 one mask is not 1'
+        assert True in (my[1][index[0] + 1] == 0.0), 'in element test data2, mask index is 0.0'
+        assert True in (my[1][index[0]] != 0.0)
+        pass
+
